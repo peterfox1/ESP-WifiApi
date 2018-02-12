@@ -15,14 +15,14 @@ Simply requires `wifiApi.autoConnect("MyAP");` in `setup()` and `wifiApi.handleC
  - [ ] A callback can be used to fine tune how to handle failure to connect (ie you could choose to wait, start up the AP or any other action)
  - [ ] A callback is triggered when custom parameters are updated.
  
- *Currently WIP functionailty, may use hard coded values.
+ *Currently WIP functionality, may use hard coded values.
  
 ## Example Flow
-Functionailty enabled by simply calling `wifiApi.autoConnect("MyAP");` on setup:
+Functionality enabled by simply calling `wifiApi.autoConnect("MyAP");` on setup:
  1. ESP is powered up, no wifi details are present so an AP called "MyAP" is created.
  1. After connecting to "MyAP", your app can connect to the config API via `192.168.4.1/config`.
  1. Your app can provide wifi details using `192.168.4.1/config?set={"ssid":"my wifi", "pass":"mypassword"}`.
  1. The ESP restarts and connects to `my wifi` using the provided details.
  1. The API is still present at the ESP's new IP address, so new details can be provided or custom parameters can be provided.
  
- If the ESP is powered up again, it will automactially connect to the WiFi network previously configured.
+ If the ESP is powered up again, it will automatically connect to the WiFi network previously configured.
