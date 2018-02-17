@@ -15,10 +15,14 @@ class WifiApi {
     
     void handleClient();  // Must be called in the main loop of the application?
 
-    void onFailedReconnect( void (*func)(void) );
-    void onConfigChange( void (*func)(void) );
+    void onCustomDataChange( void (*func)(WifiApi*) );
+    void onWifiConfigChange( void (*func)(WifiApi*) );
+    void onFailedReconnect( void (*func)(WifiApi*) );
 
-    void resetSettings();
+    boolean hasWifiConfig();
+    void resetWifiConfig();
+    void resetCustomConfig();
+    void reset();
 
   private:
     std::unique_ptr<DNSServer>        dnsServer;
@@ -31,8 +35,9 @@ class WifiApi {
     unsigned long _accessPointTimeout = 0;
     unsigned long _connectTimeout = 0;
 
-    void (*_fnFailedReconnect)(void) = NULL;
-    void (*_fnConfigChange)(void) = NULL;
+    void (*_fnCustomDataChange)(WifiApi*) = NULL;
+    void (*_fnWifiConfigChange)(WifiApi*) = NULL;
+    void (*_fnFailedReconnect)(WifiApi*) = NULL;
 
     int status = WL_IDLE_STATUS;
     unsigned long _accessPointStart = 0;

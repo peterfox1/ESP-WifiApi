@@ -8,17 +8,20 @@ WifiApi::WifiApi() {
 
 
 
-/* Attempt WiFi connection, else starts the AP */
+/* Attempt WiFi connection or starts the AP if no wifi details are stored. */
 boolean WifiApi::autoConnect() {
   String ssid = "ESP" + String(ESP.getChipId());
   autoConnect(ssid.c_str(), NULL);
 }
 
+/* Attempt WiFi connection or starts the AP if no wifi details are stored. */
 boolean WifiApi::autoConnect(char const *apName, char const *apPassword) {
 
-  // TODO check for config first.
-  // TODO if no config -> return startAccessPoint().
-
+  // Check for wifi config.
+  if (!hasWifiConfig()) {
+    // No wifi config, start access point immediately.
+    return awaitSetupViaAccessPoint(apName, apPassword);
+  }
   
   // attempt to connect; should it fail, fall back to AP
   WiFi.mode(WIFI_STA);
@@ -33,9 +36,15 @@ boolean WifiApi::autoConnect(char const *apName, char const *apPassword) {
     return true;
   }
 
-  // Couldn't connect, start AP instead.
-  // TODO: We should check for config first, if there's no config we start the AP. Else we try to connect. if connection fails we call the failed connection callback.
-  return awaitSetupViaAccessPoint(apName, apPassword);
+  // Couldn't connect
+  // Call connection failure callback. The callback can be customised to Retry the connection or fallback to AP mode etc.
+  if (_fnFailedReconnect != NULL) {
+    _fnFailedReconnect(this);
+  }
+
+  // FUTURE: Add a setting to enable a built-in auto-retry X attempts or reset and AP fallback.
+  
+  return false;
 }
 
 
@@ -63,7 +72,7 @@ int WifiApi::connectWifi(String ssid, String pass) {
       DEBUG_WM("Using last saved values, should be faster");
       //trying to fix connection in progress hanging
       ETS_UART_INTR_DISABLE();
-      //wifi_station_disconnect();  // TODO not sure why this: 'wifi_station_disconnect' was not declared in this scope
+      //wifi_station_disconnect();  // TODO not sure why we get this error: 'wifi_station_disconnect' was not declared in this scope
       ETS_UART_INTR_ENABLE();
 
       WiFi.begin();
@@ -278,26 +287,51 @@ void WifiApi::saveConfig() {
 
 
 
+/* Set a callback to run custom code when WifiApi receieves updated custom data via the JSON API */
+void WifiApi::onCustomDataChange( void (*func)(WifiApi* myWifiApi) ) {
+  _fnCustomDataChange = func;
+}
+/* Set a callback to run custom code before WifiApi switches to the updated wifi details recieved via the JSON API */
+void WifiApi::onWifiConfigChange( void (*func)(WifiApi* myWifiApi) ) {
+  _fnWifiConfigChange = func;
+}
 
 /* set a callback function to handle failed re-connect */
-void WifiApi::onFailedReconnect( void (*func)(void) ) {
+void WifiApi::onFailedReconnect( void (*func)(WifiApi* myWifiApi) ) {
   _fnFailedReconnect = func;
 }
 
-/* set a callback function to handle an updated config */
-void WifiApi::onConfigChange( void (*func)(void) ) {
-  _fnConfigChange = func;
+
+
+
+/* Check if we have wifi details stored */
+boolean WifiApi::hasWifiConfig() {
+  if (WiFi.SSID()) {
+    return true;
+  }
+  // FUTURE: Check json config for stored details too.
+  return false;
 }
 
 
-/* DEBUG function to force reset stored wifi settings */
-void WifiApi::resetSettings() {
+/* Clear all custom config data */
+void WifiApi::resetCustomConfig() {
+  // TODO
+}
+
+/* Clear wifi config */
+void WifiApi::resetWifiConfig() {
   DEBUG_WM(F("settings invalidated"));
   DEBUG_WM(F("THIS MAY CAUSE AP NOT TO START UP PROPERLY. YOU NEED TO COMMENT IT OUT AFTER ERASING THE DATA."));
   WiFi.disconnect(true);
   //delay(200);
 }
 
+/* Clear all stored data and wifi config */
+void WifiApi::reset() {
+  resetWifiConfig();
+  resetCustomConfig();
+}
 
 
 
