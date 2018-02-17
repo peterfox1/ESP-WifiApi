@@ -16,7 +16,8 @@ void setup() {
   digitalWrite(PIN_LED_STATUS, LOW); // LED OFF
 
   Serial.begin(115200);
-  Serial.println();
+  while (!Serial) ; delay(100); // Wait for serial
+  Serial.println(">");
 
 
   // Clear any saved data or wifi settings, use it here for testing purposes. This could be used in a 'factory reset' type of function elsewhere in your project too.
@@ -30,7 +31,7 @@ void setup() {
   wifiApi.autoConnect("ap name"); // Handles the wifi connection / re-connection. Awaits configuration via AP mode if no existing wifi details are stored.
 
   
-  Serial.println("local ip");
+  Serial.print("local ip: ");
   Serial.println(WiFi.localIP());
 
 }

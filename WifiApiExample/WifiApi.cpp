@@ -20,10 +20,14 @@ boolean WifiApi::autoConnect(char const *apName, char const *apPassword) {
   // Check for wifi config.
   if (!hasWifiConfig()) {
     // No wifi config, start access point immediately.
+    DEBUG_WM(F("No stored wifi details, starting AP"));
     return awaitSetupViaAccessPoint(apName, apPassword);
   }
   
-  // attempt to connect; should it fail, fall back to AP
+  
+  // Attempt to connect using existing wifi details.
+  DEBUG_WM(F("Attempting connection to existing wifi details."));
+  
   WiFi.mode(WIFI_STA);
 
   if (connectWifi("", "") == WL_CONNECTED)   {
@@ -68,7 +72,7 @@ int WifiApi::connectWifi(String ssid, String pass) {
   if (ssid != "") {
     WiFi.begin(ssid.c_str(), pass.c_str());
   } else {
-    if (WiFi.SSID()) {
+    if (WiFi.SSID() != "") {
       DEBUG_WM("Using last saved values, should be faster");
       //trying to fix connection in progress hanging
       ETS_UART_INTR_DISABLE();
@@ -306,7 +310,7 @@ void WifiApi::onFailedReconnect( void (*func)(WifiApi* myWifiApi) ) {
 
 /* Check if we have wifi details stored */
 boolean WifiApi::hasWifiConfig() {
-  if (WiFi.SSID()) {
+  if (WiFi.SSID() != "") {
     return true;
   }
   // FUTURE: Check json config for stored details too.
@@ -338,7 +342,7 @@ void WifiApi::reset() {
 template <typename Generic>
 void WifiApi::DEBUG_WM(Generic text) {
   if (_debug) {
-    Serial.print("*WM: ");
+    Serial.print("*WA: ");
     Serial.println(text);
   }
 }
