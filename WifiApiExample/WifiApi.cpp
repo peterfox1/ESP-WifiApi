@@ -147,7 +147,7 @@ boolean WifiApi::awaitSetupViaAccessPoint(char const *apName, char const *apPass
   while(1){
 
 //    // check if timeout
-//    if(configPortalHasTimeout()) break;
+//    if(hasAccessPointExpired()) break;
 
     //DNS
     dnsServer->processNextRequest();
@@ -165,8 +165,8 @@ boolean WifiApi::awaitSetupViaAccessPoint(char const *apName, char const *apPass
         DEBUG_WM(F("Failed to connect."));
       } else {
         //connected
-        WiFi.mode(WIFI_STA);
-        //startApi(); // API seems to not work in client mode here?
+        WiFi.mode(WIFI_STA);  // Staion mode = client only / Turns off AP?
+        //startApi(); // API seems to not work in client mode here? // TODO fix this
 //        //notify that configuration has changed and any optional parameters should be saved
 //        if ( _savecallback != NULL) {
 //          //todo: check if any custom parameters actually exist, and check if they really changed maybe
@@ -251,45 +251,208 @@ void WifiApi::startApi() {
  */
 void WifiApi::apiHandleConfig() {
 
-  // TODO read current json config
-  String cfg_json_string = "{\"ssid\":\"test\"}";
-  
-  // TODO read any provided json config
-  String get_cfg_json_string = server->arg("set");
-  if (get_cfg_json_string != "") {
-    // TODO Set/save config
-    cfg_json_string = get_cfg_json_string;
+  HTTPMethod currentMethod = server->method();
 
-    saveConfig(); // TODO supply json_string to this function
+  if (currentMethod == HTTP_POST) {
+    StaticJsonBuffer<200> postBuffer;
+    JsonObject& postJson = postBuffer.parseObject(server->arg("plain"));
+
+    if (!postJson.success()) {
+      server->send(500, "application/javascript", "{\"error\":\"invalid_json\"}");
+      return;
+    }
+
+    server->send(200, "application/javascript", "{\"success\":true}");
+    
+    saveAndApplyConfig(postJson); // Save and apply config and/or wifi details change.
+    return;
+  }
+  
+  DynamicJsonBuffer jsonBuffer;
+  JsonObject& json_root = jsonBuffer.createObject();
+
+  JsonObject& json_wifi = json_root.createNestedObject("wifi");
+  json_wifi["ssid"] = WiFi.SSID();
+  json_wifi["pass"] = "***";  // It's not secure to return the SSID
+
+  JsonObject& json_info = json_root.createNestedObject("info");
+  json_info["heap"] = ESP.getFreeHeap();
+
+  JsonObject* appJson = getConfig_app();
+  if (appJson != NULL) {
+    json_wifi["app"] = appJson;
+  } else {
+    json_root.createNestedObject("info");
+  }
+//  JsonObject& json_custom_app_data = json_root.createNestedObject("app");
+//  json_custom_app_data["example"] = "123";
+
+
+  String output;
+  json_root.printTo(output);
+
+  server->send(200, "application/javascript", output);
+
+
+//  
+//  // FUTURE read wifi settings from presistant storage
+//  // FUTURE read custom app data from presistant storage
+//
+//  // TODO read any provided json data
+//
+//  // TODO detect if it was a POST request
+//  // TODO read the data from arg("plain") apparently
+////  StaticJsonBuffer<200> newBuffer;
+////  JsonObject& newjson = newBuffer.parseObject(server.arg("plain"));
+//
+//  
+//  String get_cfg_json_string = server->arg("set");
+//  if (get_cfg_json_string != "") {
+//    // TODO Set/save config
+//    cfg_json_string = get_cfg_json_string;
+//
+//    saveConfig(); // TODO supply json_string to this function
+//  }
+//
+//  // TODO respond with current/updated json config
+//  
+////  String message = "world-";
+////  message += server.arg("text");
+////  
+////  String response = "{\"hello\":\""+ message +"\"}";
+//  
+//  server->send(200, "application/javascript", cfg_json_string); // #######################################
+}
+
+/* Read config data from a json object. Saves custom app parameters and applies wifi ssid/pass if provided. */
+void WifiApi::saveAndApplyConfig( JsonObject& postJson ) {
+
+  if (postJson.containsKey("app")) {
+    JsonObject& appJson = postJson["app"];
+    // Save custom app paramters
+    saveConfig_app(appJson);
   }
 
-  // TODO respond with current/updated json config
-  
-//  String message = "world-";
-//  message += server.arg("text");
-//  
-//  String response = "{\"hello\":\""+ message +"\"}";
-  
-  server->send(200, "application/javascript", cfg_json_string);
+  if (postJson.containsKey("wifi")) {
+    // Check wifi details
+    JsonObject& wifiJson = postJson["wifi"];
+
+    if (wifiJson.containsKey("ssid") && wifiJson.containsKey("pass")) {
+      // Save wifi details
+      
+      // Apply wifi config
+      _ssid = wifiJson.get<String>("ssid");
+      _pass = wifiJson.get<String>("pass");
+
+      saveConfig_wifi(wifiJson);
+      
+      // ssid & password were provided, notify AP mode to attempt connection.
+      _ap_wifi_config_provided = true;
+    }
+
+  }
+
 }
+
+/* Read config data from a json object. Saves custom app parameters and applies wifi ssid/pass if provided. */
+void WifiApi::saveConfig_wifi( JsonObject& wifiJson ) {
+  File configFile_wifi = SPIFFS.open(WIFIAPI_FILE_WIFI, "w");
+  wifiJson.printTo(configFile_wifi); // Export and save JSON object to SPIFFS area
+  configFile_wifi.close();  
+}
+void WifiApi::saveConfig_app( JsonObject& newAppJson ) {
+  File configFile_app = SPIFFS.open(WIFIAPI_FILE_APP, "w");
+
+  // Read file first & merge/overwrite data.
+  JsonObject* appJsonPtr = getConfig_app();
+  if (appJsonPtr != NULL) {
+    JsonObject& appJson = *appJsonPtr;
+    DEBUG_WM(F("saveConfig_app - extend"));
+    for (auto kvp : newAppJson) {
+      appJson[kvp.key] = kvp.value;
+    }
+    appJson.printTo(configFile_app); // Export and save JSON object to SPIFFS area
+  } else {
+    DEBUG_WM(F("saveConfig_app - new"));
+    newAppJson.printTo(configFile_app); // Export and save JSON object to SPIFFS area
+  }
+  
+  configFile_app.close();  
+}
+
+
+
+JsonObject* WifiApi::loadFromJsonFile(const char* filename) {
+  
+  StaticJsonBuffer<1> emptyJsonBuffer;
+  JsonObject& emptyJson = emptyJsonBuffer.createObject();
+
+  
+  File file = SPIFFS.open(filename, "r");
+  if (!file) {
+    DEBUG_WM(F("loadFromJsonFile - File not found"));
+    return NULL;
+    //return emptyJson;
+  }
+  
+  size_t size = file.size();
+  if (size > 1024) {
+    DEBUG_WM(F("loadFromJsonFile - File to large"));
+    return NULL;
+    //return emptyJson;
+  }
+  else if (size == 0)   {
+    DEBUG_WM(F("loadFromJsonFile - File is empty"));
+    return NULL;
+    //return emptyJson;
+  }
+  
+  std::unique_ptr<char[]> buf(new char[size]);
+  file.readBytes(buf.get(), size);
+  
+  StaticJsonBuffer<200> jsonBuffer;
+  JsonObject& json = jsonBuffer.parseObject(buf.get());
+  
+  if (!json.success()) {
+    DEBUG_WM(F("loadFromJsonFile - Failed to parse config file"));
+    // TODO delete file?
+    return NULL;
+    //return emptyJson;
+  }
+  
+  file.close();
+
+  return &json;
+}
+
+JsonObject* WifiApi::getConfig_wifi() {
+  if (_wifiJson == NULL) {
+    _wifiJson = loadFromJsonFile(WIFIAPI_FILE_WIFI);
+  }
+  return _wifiJson;
+}
+
+JsonObject* WifiApi::getConfig_app() {
+  DEBUG_WM(F("getConfig_app - START:"));
+  if (_appJson == NULL) {
+    DEBUG_WM(F("getConfig_app - _appJson == NULL"));
+    _appJson = loadFromJsonFile(WIFIAPI_FILE_APP);
+  } else {
+    if (_appJson->success()) {
+      DEBUG_WM(F("getConfig_app - _appJson != NULL - suc"));
+    } else {
+      DEBUG_WM(F("getConfig_app - _appJson != NULL - !suc"));
+    }
+  }
+  return _appJson;
+}
+
+
+
 
 void WifiApi::handleClient() {
   server->handleClient();
 }
-
-
-void WifiApi::saveConfig() {
-
-  // TODO read details from config json
-  _ssid = "xx"; // Set these for testing
-  _pass = "xx";
-
-  // TODO if ssid & password are provided, notify AP mode to attempt connection.
-  _ap_wifi_config_provided = true;
-  
-}
-
-
 
 /* Set a callback to run custom code when WifiApi receieves updated custom data via the JSON API */
 void WifiApi::onCustomDataChange( void (*func)(WifiApi* myWifiApi) ) {

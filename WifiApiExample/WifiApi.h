@@ -6,6 +6,12 @@
 #include <ESP8266WebServer.h>
 #include <DNSServer.h>
 
+#include <ArduinoJson.h>          // https://github.com/bblanchon/ArduinoJson
+#include "FS.h"
+
+#define WIFIAPI_FILE_WIFI "/config/wifi.json"
+#define WIFIAPI_FILE_APP "/config/app.json"
+
 class WifiApi {
   public:
     WifiApi();
@@ -32,6 +38,10 @@ class WifiApi {
     const char* _apPassword = NULL;
     String _ssid = "";
     String _pass = "";
+
+    JsonObject* _wifiJson = NULL;
+    JsonObject* _appJson = NULL;
+    
     unsigned long _accessPointTimeout = 0;
     unsigned long _connectTimeout = 0;
 
@@ -59,8 +69,16 @@ class WifiApi {
     void startApi();
     void apiHandleConfig();
     
-    void saveConfig();
+    void saveAndApplyConfig(JsonObject& postJson);
+    void saveConfig_wifi(JsonObject& wifiJson);
+    void saveConfig_app(JsonObject& appJson);
     
+    JsonObject* getConfig_wifi();
+    JsonObject* getConfig_app();
+
+
+    
+    JsonObject* loadFromJsonFile(const char* filename);
 
     template <typename Generic>
     void DEBUG_WM(Generic text);
