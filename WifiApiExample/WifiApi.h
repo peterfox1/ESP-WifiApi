@@ -9,8 +9,8 @@
 #include <ArduinoJson.h>          // https://github.com/bblanchon/ArduinoJson
 #include "FS.h"
 
-#define WIFIAPI_FILE_WIFI "/config/wifi.json"
-#define WIFIAPI_FILE_APP "/config/app.json"
+#define WIFIAPI_FILE_WIFI "/config-wifi.json"
+#define WIFIAPI_FILE_APP "/config-app.json"
 
 class WifiApi {
   public:
@@ -39,8 +39,8 @@ class WifiApi {
     String _ssid = "";
     String _pass = "";
 
-    JsonObject* _wifiJson = NULL;
-    JsonObject* _appJson = NULL;
+    char* _wifiJson = NULL;
+    char* _appJson = NULL;
     
     unsigned long _accessPointTimeout = 0;
     unsigned long _connectTimeout = 0;
@@ -68,17 +68,18 @@ class WifiApi {
 
     void startApi();
     void apiHandleConfig();
+
+    bool hasConfig_wifi();
+    bool hasConfig_app();
+    const char* getWifiJson();
+    const char* getAppJson();
     
     void saveAndApplyConfig(JsonObject& postJson);
     void saveConfig_wifi(JsonObject& wifiJson);
     void saveConfig_app(JsonObject& appJson);
-    
-    JsonObject* getConfig_wifi();
-    JsonObject* getConfig_app();
 
-
-    
-    JsonObject* loadFromJsonFile(const char* filename);
+    bool startFileSystem();
+    const char* loadFromJsonFile(const char* filename);
 
     template <typename Generic>
     void DEBUG_WM(Generic text);

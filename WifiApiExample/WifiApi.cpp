@@ -277,51 +277,21 @@ void WifiApi::apiHandleConfig() {
 
   JsonObject& json_info = json_root.createNestedObject("info");
   json_info["heap"] = ESP.getFreeHeap();
-
-  JsonObject* appJson = getConfig_app();
-  if (appJson != NULL) {
-    json_wifi["app"] = appJson;
+  
+  if (hasConfig_app()) {
+    JsonObject& appJson = jsonBuffer.parseObject(getAppJson());
+    json_root["app"] = appJson;
   } else {
-    json_root.createNestedObject("info");
+    // No custom data, return empty object
+    json_root.createNestedObject("app");
   }
-//  JsonObject& json_custom_app_data = json_root.createNestedObject("app");
-//  json_custom_app_data["example"] = "123";
 
 
   String output;
   json_root.printTo(output);
 
   server->send(200, "application/javascript", output);
-
-
-//  
-//  // FUTURE read wifi settings from presistant storage
-//  // FUTURE read custom app data from presistant storage
-//
-//  // TODO read any provided json data
-//
-//  // TODO detect if it was a POST request
-//  // TODO read the data from arg("plain") apparently
-////  StaticJsonBuffer<200> newBuffer;
-////  JsonObject& newjson = newBuffer.parseObject(server.arg("plain"));
-//
-//  
-//  String get_cfg_json_string = server->arg("set");
-//  if (get_cfg_json_string != "") {
-//    // TODO Set/save config
-//    cfg_json_string = get_cfg_json_string;
-//
-//    saveConfig(); // TODO supply json_string to this function
-//  }
-//
-//  // TODO respond with current/updated json config
-//  
-////  String message = "world-";
-////  message += server.arg("text");
-////  
-////  String response = "{\"hello\":\""+ message +"\"}";
-//  
-//  server->send(200, "application/javascript", cfg_json_string); // #######################################
+  
 }
 
 /* Read config data from a json object. Saves custom app parameters and applies wifi ssid/pass if provided. */
@@ -354,39 +324,118 @@ void WifiApi::saveAndApplyConfig( JsonObject& postJson ) {
 
 }
 
+
+bool WifiApi::hasConfig_wifi() {
+  return (_wifiJson != NULL);
+}
+bool WifiApi::hasConfig_app() {
+  return (_appJson != NULL);
+}
+
+const char* WifiApi::getWifiJson() {
+//  if (_wifiJson == NULL) {
+//    _wifiJson = loadFromJsonFile(WIFIAPI_FILE_WIFI);
+//  }
+
+  const char* _jsonConst = _wifiJson;
+  return _jsonConst;
+}
+
+const char* WifiApi::getAppJson() {
+//  if (_appJson == NULL) {
+//    _appJson = loadFromJsonFile(WIFIAPI_FILE_APP);
+//  }
+
+  const char* _jsonConst = _appJson;
+  return _jsonConst;
+}
+
+
 /* Read config data from a json object. Saves custom app parameters and applies wifi ssid/pass if provided. */
-void WifiApi::saveConfig_wifi( JsonObject& wifiJson ) {
-  File configFile_wifi = SPIFFS.open(WIFIAPI_FILE_WIFI, "w");
-  wifiJson.printTo(configFile_wifi); // Export and save JSON object to SPIFFS area
-  configFile_wifi.close();  
+void WifiApi::saveConfig_wifi( JsonObject& newWifiJson ) {
+  char jsonChar[100];
+  newWifiJson.printTo((char*)jsonChar, newWifiJson.measureLength() + 1);
+  _wifiJson = jsonChar;
+
+  
+//  if (!startFileSystem()) {
+//    DEBUG_WM(F("loadFromJsonFile - startFileSystem failed"));
+//  }
+//  
+//  File configFile = SPIFFS.open(WIFIAPI_FILE_WIFI, "w");
+//  if (!configFile) {
+//    DEBUG_WM(F("saveConfig_wifi - failed to open for write"));
+//    return;
+//  }
+//  wifiJson.printTo(configFile); // Export and save JSON object to SPIFFS area
+//  configFile.close();
 }
 void WifiApi::saveConfig_app( JsonObject& newAppJson ) {
-  File configFile_app = SPIFFS.open(WIFIAPI_FILE_APP, "w");
 
-  // Read file first & merge/overwrite data.
-  JsonObject* appJsonPtr = getConfig_app();
-  if (appJsonPtr != NULL) {
-    JsonObject& appJson = *appJsonPtr;
+  if (!hasConfig_app()) {
+    DEBUG_WM(F("saveConfig_app - new"));
+    
+    _appJson = new char [newAppJson.measureLength() + 1];
+    newAppJson.printTo((char*)_appJson, newAppJson.measureLength() + 1);
+
+    
+  } else {
     DEBUG_WM(F("saveConfig_app - extend"));
+    
+//    StaticJsonBuffer<200> jsonBuffer;
+    DynamicJsonBuffer jsonBuffer;
+    JsonObject& appJson = jsonBuffer.parseObject(getAppJson());
+
+    // Merge by copying properties from newAppJson to appJson
     for (auto kvp : newAppJson) {
       appJson[kvp.key] = kvp.value;
     }
-    appJson.printTo(configFile_app); // Export and save JSON object to SPIFFS area
-  } else {
-    DEBUG_WM(F("saveConfig_app - new"));
-    newAppJson.printTo(configFile_app); // Export and save JSON object to SPIFFS area
+
+    _appJson = new char [appJson.measureLength() + 1];
+    appJson.printTo((char*)_appJson, appJson.measureLength() + 1);
+
+    DEBUG_WM(_appJson);
+    
   }
+
+
+//  DEBUG_WM(F("saveConfig_app:"));
+//  DEBUG_WM(_appJson);
+
   
-  configFile_app.close();  
+//  if (!startFileSystem()) {
+//    DEBUG_WM(F("saveConfig_app - startFileSystem failed"));
+//  }
+//  
+//  File configFile = SPIFFS.open(WIFIAPI_FILE_APP, "w");
+//  if (!configFile) {
+//    DEBUG_WM(F("saveConfig_app - failed to open for write"));
+//    return;
+//  }
+//  appJson.printTo(configFile); // Export and save JSON object to SPIFFS area
+//  configFile.close();
 }
 
 
 
-JsonObject* WifiApi::loadFromJsonFile(const char* filename) {
+
+bool WifiApi::startFileSystem() {
+  // FUTURE store a bool to prevent re-starting.
+  if (!SPIFFS.begin()) {
+    DEBUG_WM(F("SPIFFS.begin failed"));
+    return false;
+  }
+  return true;
+}
+
+const char* WifiApi::loadFromJsonFile(const char* filename) {
   
   StaticJsonBuffer<1> emptyJsonBuffer;
   JsonObject& emptyJson = emptyJsonBuffer.createObject();
 
+  if (!startFileSystem()) {
+    DEBUG_WM(F("loadFromJsonFile - SPIFFS.begin failed"));
+  }
   
   File file = SPIFFS.open(filename, "r");
   if (!file) {
@@ -407,44 +456,25 @@ JsonObject* WifiApi::loadFromJsonFile(const char* filename) {
     //return emptyJson;
   }
   
-  std::unique_ptr<char[]> buf(new char[size]);
-  file.readBytes(buf.get(), size);
-  
-  StaticJsonBuffer<200> jsonBuffer;
-  JsonObject& json = jsonBuffer.parseObject(buf.get());
-  
-  if (!json.success()) {
-    DEBUG_WM(F("loadFromJsonFile - Failed to parse config file"));
-    // TODO delete file?
-    return NULL;
-    //return emptyJson;
-  }
-  
-  file.close();
+  String fileStr = file.readString();
+  return fileStr.c_str();
 
-  return &json;
-}
+//  std::unique_ptr<char[]> buf(new char[size]);
+//  file.readBytes(buf.get(), size);
 
-JsonObject* WifiApi::getConfig_wifi() {
-  if (_wifiJson == NULL) {
-    _wifiJson = loadFromJsonFile(WIFIAPI_FILE_WIFI);
-  }
-  return _wifiJson;
-}
-
-JsonObject* WifiApi::getConfig_app() {
-  DEBUG_WM(F("getConfig_app - START:"));
-  if (_appJson == NULL) {
-    DEBUG_WM(F("getConfig_app - _appJson == NULL"));
-    _appJson = loadFromJsonFile(WIFIAPI_FILE_APP);
-  } else {
-    if (_appJson->success()) {
-      DEBUG_WM(F("getConfig_app - _appJson != NULL - suc"));
-    } else {
-      DEBUG_WM(F("getConfig_app - _appJson != NULL - !suc"));
-    }
-  }
-  return _appJson;
+//  StaticJsonBuffer<200> jsonBuffer;
+//  JsonObject& json = jsonBuffer.parseObject(buf.get());
+//  
+//  if (!json.success()) {
+//    DEBUG_WM(F("loadFromJsonFile - Failed to parse config file"));
+//    // TODO delete file?
+//    return NULL;
+//    //return emptyJson;
+//  }
+//  
+//  file.close();
+//
+//  return &json;
 }
 
 
