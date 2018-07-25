@@ -273,7 +273,7 @@ void WifiApi::apiHandleConfig() {
 
   JsonObject& json_wifi = json_root.createNestedObject("wifi");
   json_wifi["ssid"] = WiFi.SSID();
-  json_wifi["pass"] = "***";  // It's not secure to return the SSID
+  json_wifi["pass"] = "***";  // It's not secure to return the pass
 
   JsonObject& json_info = json_root.createNestedObject("info");
   json_info["heap"] = ESP.getFreeHeap();
@@ -282,7 +282,7 @@ void WifiApi::apiHandleConfig() {
     JsonObject& appJson = jsonBuffer.parseObject(getAppJson());
     json_root["app"] = appJson;
   } else {
-    // No custom data, return empty object
+    // No custom data, return empty object anyway
     json_root.createNestedObject("app");
   }
 
@@ -400,8 +400,8 @@ void WifiApi::saveConfig_app( JsonObject& newAppJson ) {
     
   }
 
-  if (_fnCustomDataChange != NULL) {
-    _fnCustomDataChange(this, newCustomJson);
+  if (_fnAppDataChange != NULL) {
+    _fnAppDataChange(this, newAppJson);
   }
 
 
@@ -491,8 +491,8 @@ void WifiApi::handleClient() {
 }
 
 /* Set a callback to run custom code when WifiApi receieves updated custom data via the JSON API */
-void WifiApi::onCustomDataChange( void (*func)(WifiApi* wifiApi, JsonObject& customJson) ) {
-  _fnCustomDataChange = func;
+void WifiApi::onAppDataChange( void (*func)(WifiApi* wifiApi, JsonObject& appJson) ) {
+  _fnAppDataChange = func;
 }
 /* Set a callback to run custom code before WifiApi switches to the updated wifi details recieved via the JSON API */
 void WifiApi::onWifiConfigChange( void (*func)(WifiApi* wifiApi, JsonObject& wifiJson) ) {

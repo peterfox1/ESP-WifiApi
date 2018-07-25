@@ -11,11 +11,11 @@ WifiApi wifiApi;
 
 
 
-void wifiApi_onCustomDataChange(WifiApi* _wifiApi, JsonObject& customJson) {
-  Serial.print("wifiApi_onCustomDataChange: ");
-  customJson.printTo(Serial);
+void wifiApi_onAppDataChange(WifiApi* _wifiApi, JsonObject& appJson) {
+  Serial.print("wifiApi_onAppDataChange: ");
+  appJson.printTo(Serial);
 
-  JsonVariant led = customJson["led"];
+  JsonVariant led = appJson["led"];
   if (led.success()) {
     digitalWrite(PIN_LED_STATUS, !led.as<bool>());
   }
@@ -43,7 +43,7 @@ void setup() {
   //wifiApi.reset();
 
   // OPTIONAL: Use these callbacks to customise how updates/events are handled.
-  wifiApi.onCustomDataChange(wifiApi_onCustomDataChange); // Triggered on updates/changes to custom data values received via the JSON API.
+  wifiApi.onAppDataChange(wifiApi_onAppDataChange); // Triggered on updates/changes to app data values received via the JSON API.
   wifiApi.onWifiConfigChange(wifiApi_onWifiConfigChange); // Triggered just before wifiApi switches to some updated wifi details received via the JSON API.
   wifiApi.onFailedReconnect(wifiApi_onFailedReconnect);   // (Currently unused) Define how you want a connection failure to be handled. e.g. Retry, Reset and retry (enables AP mode) or perform a custom action e.g. flash an led etc.
 
