@@ -21,9 +21,9 @@ class WifiApi {
     
     void handleClient();  // Must be called in the main loop of the application?
 
-    void onCustomDataChange( void (*func)(WifiApi*) );
-    void onWifiConfigChange( void (*func)(WifiApi*) );
-    void onFailedReconnect( void (*func)(WifiApi*) );
+    void onWifiConfigChange( void (*func)(WifiApi* wifiApi, JsonObject& wifiJson) );
+    void onCustomDataChange( void (*func)(WifiApi* wifiApi, JsonObject& appJson) );
+    void onFailedReconnect( void (*func)(WifiApi* wifiApi) );
 
     boolean hasWifiConfig();
     void resetWifiConfig();
@@ -45,9 +45,9 @@ class WifiApi {
     unsigned long _accessPointTimeout = 0;
     unsigned long _connectTimeout = 0;
 
-    void (*_fnCustomDataChange)(WifiApi*) = NULL;
-    void (*_fnWifiConfigChange)(WifiApi*) = NULL;
-    void (*_fnFailedReconnect)(WifiApi*) = NULL;
+    void (*_fnWifiConfigChange)(WifiApi* wifiApi, JsonObject& wifiJson) = NULL;
+    void (*_fnCustomDataChange)(WifiApi* wifiApi, JsonObject& appJson) = NULL;
+    void (*_fnFailedReconnect)(WifiApi* wifiApi) = NULL;
 
     int status = WL_IDLE_STATUS;
     unsigned long _accessPointStart = 0;

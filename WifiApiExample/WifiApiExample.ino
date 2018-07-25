@@ -10,6 +10,25 @@ const int PIN_LED_STATUS = 2;
 WifiApi wifiApi;
 
 
+
+void wifiApi_onCustomDataChange(WifiApi* _wifiApi, JsonObject& customJson) {
+  Serial.print("wifiApi_onCustomDataChange: ");
+  customJson.printTo(Serial);
+
+  JsonVariant led = customJson["led"];
+  if (led.success()) {
+    digitalWrite(PIN_LED_STATUS, !led.as<bool>());
+  }
+}
+void wifiApi_onWifiConfigChange(WifiApi* _wifiApi, JsonObject& wifiJson) {
+  Serial.print("wifiApi_onWifiConfigChange: ");
+  wifiJson.printTo(Serial);
+}
+void wifiApi_onFailedReconnect(WifiApi* _wifiApi) { // Currently unused.
+  Serial.println("Failed Reconnect Callback");
+//  _wifiApi.retryConnect();
+}
+
 void setup() {
   
   pinMode(PIN_LED_STATUS, OUTPUT);
@@ -23,13 +42,13 @@ void setup() {
   // Clear any saved data or wifi settings, use it here for testing purposes. This could be used in a 'factory reset' type of function elsewhere in your project too.
   //wifiApi.reset();
 
-  // Use these callbacks to customise how updates/events are handled.
-  //wifiApi.onCustomDataChange(<callback>); // Triggered on updates/changes to custom data values received via the JSON API.
-  //wifiApi.onWifiConfigChange(<callback>); // Triggered just before wifiApi switches to some updated wifi details received via the JSON API.
-  //wifiApi.onFailedReconnect(<callback>);  // Define how you want a connection failure to be handled. e.g. Retry, Reset and retry (enables AP mode) or perform a custom action e.g. flash an led etc.
-  
-  wifiApi.autoConnect("ap name"); // Handles the wifi connection / re-connection. Awaits configuration via AP mode if no existing wifi details are stored.
+  // OPTIONAL: Use these callbacks to customise how updates/events are handled.
+  wifiApi.onCustomDataChange(wifiApi_onCustomDataChange); // Triggered on updates/changes to custom data values received via the JSON API.
+  wifiApi.onWifiConfigChange(wifiApi_onWifiConfigChange); // Triggered just before wifiApi switches to some updated wifi details received via the JSON API.
+  wifiApi.onFailedReconnect(wifiApi_onFailedReconnect);   // (Currently unused) Define how you want a connection failure to be handled. e.g. Retry, Reset and retry (enables AP mode) or perform a custom action e.g. flash an led etc.
 
+  // The only line required:
+  wifiApi.autoConnect("ap name"); // Handles the wifi connection / re-connection. Awaits configuration via AP mode if no existing wifi details are stored.
   
   Serial.print("local ip: ");
   Serial.println(WiFi.localIP());
@@ -40,10 +59,7 @@ void loop() {
   wifiApi.handleClient(); // Put this in the main loop to allow the JSON API to be used when connected to the wifi network (optional)
   
   // put your main code here, to run repeatedly:
-  
-  digitalWrite(PIN_LED_STATUS, HIGH); // LED ON
-  delay(100);
-  digitalWrite(PIN_LED_STATUS, LOW); // LED OFF
-  delay(100);
-  
+  delay(1);
 }
+
+

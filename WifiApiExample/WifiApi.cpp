@@ -309,13 +309,12 @@ void WifiApi::saveAndApplyConfig( JsonObject& postJson ) {
 
     if (wifiJson.containsKey("ssid") && wifiJson.containsKey("pass")) {
       // Save wifi details
+      saveConfig_wifi(wifiJson);
       
       // Apply wifi config
       _ssid = wifiJson.get<String>("ssid");
       _pass = wifiJson.get<String>("pass");
 
-      saveConfig_wifi(wifiJson);
-      
       // ssid & password were provided, notify AP mode to attempt connection.
       _ap_wifi_config_provided = true;
     }
@@ -357,6 +356,9 @@ void WifiApi::saveConfig_wifi( JsonObject& newWifiJson ) {
   newWifiJson.printTo((char*)jsonChar, newWifiJson.measureLength() + 1);
   _wifiJson = jsonChar;
 
+  if (_fnWifiConfigChange != NULL) {
+    _fnWifiConfigChange(this, newWifiJson);
+  }
   
 //  if (!startFileSystem()) {
 //    DEBUG_WM(F("loadFromJsonFile - startFileSystem failed"));
@@ -396,6 +398,10 @@ void WifiApi::saveConfig_app( JsonObject& newAppJson ) {
 
     DEBUG_WM(_appJson);
     
+  }
+
+  if (_fnCustomDataChange != NULL) {
+    _fnCustomDataChange(this, newCustomJson);
   }
 
 
@@ -485,16 +491,16 @@ void WifiApi::handleClient() {
 }
 
 /* Set a callback to run custom code when WifiApi receieves updated custom data via the JSON API */
-void WifiApi::onCustomDataChange( void (*func)(WifiApi* myWifiApi) ) {
+void WifiApi::onCustomDataChange( void (*func)(WifiApi* wifiApi, JsonObject& customJson) ) {
   _fnCustomDataChange = func;
 }
 /* Set a callback to run custom code before WifiApi switches to the updated wifi details recieved via the JSON API */
-void WifiApi::onWifiConfigChange( void (*func)(WifiApi* myWifiApi) ) {
+void WifiApi::onWifiConfigChange( void (*func)(WifiApi* wifiApi, JsonObject& wifiJson) ) {
   _fnWifiConfigChange = func;
 }
 
 /* set a callback function to handle failed re-connect */
-void WifiApi::onFailedReconnect( void (*func)(WifiApi* myWifiApi) ) {
+void WifiApi::onFailedReconnect( void (*func)(WifiApi* wifiApi) ) {
   _fnFailedReconnect = func;
 }
 
