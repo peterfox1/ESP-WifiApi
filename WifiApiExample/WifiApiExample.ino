@@ -9,23 +9,53 @@ const int PIN_LED_STATUS = 2;
 
 WifiApi wifiApi;
 
-
-
+/**
+ * WifiApi Event: The app (application-specific) data was updated
+ * 
+ * Use this to perform an action as soon as the app data changes.
+ * 
+ * This example checks for an 'led' property and uses it to turn on/off the LED.
+ */
 void wifiApi_onAppDataChange(WifiApi* _wifiApi, JsonObject& appJson) {
   Serial.print("wifiApi_onAppDataChange: ");
   appJson.printTo(Serial);
 
+  // Look for an 'led' property and use it's value to turn on or off the led.
   JsonVariant led = appJson["led"];
   if (led.success()) {
     digitalWrite(PIN_LED_STATUS, !led.as<bool>());
   }
 }
+
+/**
+ * WifiApi Event: The wifi configuration was set
+ * 
+ * Use this if you need to trigger a reset or reconnection when the wifi connection is changed.
+ */
 void wifiApi_onWifiConfigChange(WifiApi* _wifiApi, JsonObject& wifiJson) {
   Serial.print("wifiApi_onWifiConfigChange: ");
   wifiJson.printTo(Serial);
 }
-void wifiApi_onFailedReconnect(WifiApi* _wifiApi) { // Currently unused.
+
+/**
+ * ***WIP - Currently not working***
+ * 
+ * WifiApi Event: Could not connect to the stored wifi details
+ * 
+ * This can be used to define how you want handle reconnection and update a connection status LED etc.
+ * 
+ * A typical option is to just call retryConnect which will endless retry for connection.
+ * If you do this, you should also have a way to reset the wifi manually, e.g. have a button you press
+ * and hold that triggers wifiApi.reset().
+ * 
+ * If your device has no phyical buttons then you could instead use this to switch back to AP mode.
+ * It would be best to make this retry the connection a few times with delay just in case the wifi
+ * connection is only temporarly disconnected.
+ */
+void wifiApi_onFailedReconnect(WifiApi* _wifiApi) {
   Serial.println("Failed Reconnect Callback");
+
+  // If we cannot connect using stored details 
 //  _wifiApi.retryConnect();
 }
 
@@ -39,15 +69,19 @@ void setup() {
   Serial.println(">");
 
 
-  // Clear any saved data or wifi settings, use it here for testing purposes. This could be used in a 'factory reset' type of function elsewhere in your project too.
+  // Clear any saved data or wifi settings, use this to clear stored wifi details/switch back to AP mode.
+  // ...This should only be used by a 'wifi reset' button/action on your device.
+  // ...If you don't have a dedicated button available for this, you could trigger it if a button is pressed during power up.
+  // ...If this isn't possible, you can use onFailedReconnect to automatically switch it back to AP mode if the wifi connection fails.
   //wifiApi.reset();
+
 
   // OPTIONAL: Use these callbacks to customise how updates/events are handled.
   wifiApi.onAppDataChange(wifiApi_onAppDataChange); // Triggered on updates/changes to app data values received via the JSON API.
   wifiApi.onWifiConfigChange(wifiApi_onWifiConfigChange); // Triggered just before wifiApi switches to some updated wifi details received via the JSON API.
-  wifiApi.onFailedReconnect(wifiApi_onFailedReconnect);   // (Currently unused) Define how you want a connection failure to be handled. e.g. Retry, Reset and retry (enables AP mode) or perform a custom action e.g. flash an led etc.
+  wifiApi.onFailedReconnect(wifiApi_onFailedReconnect);   // (WIP - Currently not working) Define how you want a connection failure to be handled. e.g. Retry, Reset and retry (enables AP mode) or perform a custom action e.g. flash an led etc.
 
-  // The only line required:
+  // REQUIRED: This is the only line you need to use this library!
   wifiApi.autoConnect("ap name"); // Handles the wifi connection / re-connection. Awaits configuration via AP mode if no existing wifi details are stored.
   
   Serial.print("local ip: ");
