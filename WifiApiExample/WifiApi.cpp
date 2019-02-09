@@ -346,17 +346,22 @@ const char* WifiApi::getWifiJson() {
 
 const char* WifiApi::getAppJson() {
   
-  //DEBUG_WM(F("getAppJson"));
+//  DEBUG_WM(F("getAppJson"));
   
   if (_appJson == NULL) {
     _appJson = fsReadJsonChar(WIFIAPI_FILE_APP);
-
-//    // Trigger App Data Change Callback (TODO - this will allow this callback to be re-used for app config on boot)
-//    if (_fnAppDataChange != NULL) {
-//      _fnAppDataChange(this, appJson);
-//    }
+    
+    // Trigger App Data Change Callback (this allows this callback to be reused for app config on boot)
+    if (_fnAppDataChange != NULL) {
+      DynamicJsonBuffer jsonBuffer;
+      JsonObject& appJson = jsonBuffer.parseObject((const char*)_appJson);  // Cast to const to prevent _appJson from being modified by the parser
+      _fnAppDataChange(this, appJson);
+    }
   }
+  
+//  DEBUG_WM(_appJson);
 
+  // Return a const char to prevent the json parse from changing the orginal char!
   const char* _jsonConst = _appJson;
   return _jsonConst;
 }
@@ -580,10 +585,10 @@ JsonObject* WifiApi::fsReadJson(const char* filename) {
     return NULL;
   }
   
-  DEBUG_WM(F("fsReadJson - Success:"));
-  String output;
-  json.printTo(output);
-  DEBUG_WM(output);
+//  DEBUG_WM(F("fsReadJson - Success:"));
+//  String output;
+//  json.printTo(output);
+//  DEBUG_WM(output);
   
   return &json;
   

@@ -18,7 +18,7 @@ WifiApi wifiApi;
  */
 void wifiApi_onAppDataChange(WifiApi* _wifiApi, JsonObject& appJson) {
   Serial.print("wifiApi_onAppDataChange: ");
-  appJson.printTo(Serial);
+  appJson.printTo(Serial); Serial.println();
 
   // Look for an 'led' property and use it's value to turn on or off the led.
   JsonVariant led = appJson["led"];
@@ -34,7 +34,7 @@ void wifiApi_onAppDataChange(WifiApi* _wifiApi, JsonObject& appJson) {
  */
 void wifiApi_onWifiConfigChange(WifiApi* _wifiApi, JsonObject& wifiJson) {
   Serial.print("wifiApi_onWifiConfigChange: ");
-  wifiJson.printTo(Serial);
+  wifiJson.printTo(Serial); Serial.println();
 }
 
 /**
