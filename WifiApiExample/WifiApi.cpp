@@ -17,6 +17,9 @@ boolean WifiApi::autoConnect() {
 /* Attempt WiFi connection or starts the AP if no wifi details are stored. */
 boolean WifiApi::autoConnect(char const *apName, char const *apPassword) {
 
+  // Load App Config
+  getAppJson();
+
   // Check for wifi config.
   if (!hasWifiConfig()) {
     // No wifi config, start access point immediately.
@@ -332,8 +335,9 @@ bool WifiApi::hasConfig_app() {
 }
 
 const char* WifiApi::getWifiJson() {
+  // Currently relying on ESP8266WiFi to save the wifi config.
 //  if (_wifiJson == NULL) {
-//    _wifiJson = loadFromJsonFile(WIFIAPI_FILE_WIFI);
+//    _wifiJson = fsReadJsonChar(WIFIAPI_FILE_WIFI);
 //  }
 
   const char* _jsonConst = _wifiJson;
@@ -341,9 +345,17 @@ const char* WifiApi::getWifiJson() {
 }
 
 const char* WifiApi::getAppJson() {
-//  if (_appJson == NULL) {
-//    _appJson = loadFromJsonFile(WIFIAPI_FILE_APP);
-//  }
+  
+  //DEBUG_WM(F("getAppJson"));
+  
+  if (_appJson == NULL) {
+    _appJson = fsReadJsonChar(WIFIAPI_FILE_APP);
+
+//    // Trigger App Data Change Callback (TODO - this will allow this callback to be re-used for app config on boot)
+//    if (_fnAppDataChange != NULL) {
+//      _fnAppDataChange(this, appJson);
+//    }
+  }
 
   const char* _jsonConst = _appJson;
   return _jsonConst;
@@ -361,7 +373,7 @@ void WifiApi::saveConfig_wifi( JsonObject& newWifiJson ) {
   }
   
 //  if (!startFileSystem()) {
-//    DEBUG_WM(F("loadFromJsonFile - startFileSystem failed"));
+//    DEBUG_WM(F("fsReadJsonChar - startFileSystem failed"));
 //  }
 //  
 //  File configFile = SPIFFS.open(WIFIAPI_FILE_WIFI, "w");
@@ -483,53 +495,45 @@ bool WifiApi::startFileSystem() {
   return true;
 }
 
-const char* WifiApi::loadFromJsonFile(const char* filename) {
+char* WifiApi::fsReadJsonChar(const char* filename) {
   
   StaticJsonBuffer<1> emptyJsonBuffer;
   JsonObject& emptyJson = emptyJsonBuffer.createObject();
 
   if (!startFileSystem()) {
-    DEBUG_WM(F("loadFromJsonFile - SPIFFS.begin failed"));
+    DEBUG_WM(F("fsReadJsonChar - SPIFFS.begin failed"));
   }
   
   File file = SPIFFS.open(filename, "r");
   if (!file) {
-    DEBUG_WM(F("loadFromJsonFile - File not found"));
+    DEBUG_WM(F("fsReadJsonChar - File not found"));
     return NULL;
     //return emptyJson;
   }
   
   size_t size = file.size();
   if (size > 1024) {
-    DEBUG_WM(F("loadFromJsonFile - File to large"));
+    DEBUG_WM(F("fsReadJsonChar - File to large"));
     return NULL;
     //return emptyJson;
   }
   else if (size == 0)   {
-    DEBUG_WM(F("loadFromJsonFile - File is empty"));
+    DEBUG_WM(F("fsReadJsonChar - File is empty"));
     return NULL;
     //return emptyJson;
   }
-  
+
   String fileStr = file.readString();
-  return fileStr.c_str();
+  char *cstr = new char[fileStr.length() + 1];
+  strcpy(cstr, fileStr.c_str());
 
-//  std::unique_ptr<char[]> buf(new char[size]);
-//  file.readBytes(buf.get(), size);
 
-//  StaticJsonBuffer<200> jsonBuffer;
-//  JsonObject& json = jsonBuffer.parseObject(buf.get());
-//  
-//  if (!json.success()) {
-//    DEBUG_WM(F("loadFromJsonFile - Failed to parse config file"));
-//    // TODO delete file?
-//    return NULL;
-//    //return emptyJson;
-//  }
-//  
-//  file.close();
-//
-//  return &json;
+  DEBUG_WM(F("fsReadJsonChar - json loaded"));
+  DEBUG_WM(filename);
+  DEBUG_WM(cstr);
+  
+  return cstr;
+  
 }
 
 

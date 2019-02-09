@@ -81,7 +81,7 @@ class WifiApi {
     bool startFileSystem();
     bool fsWriteJson(JsonObject& newAppJson, const char *filename);
     bool fsWriteJsonChar(char *jsonChar, const char *filename);
-    const char* loadFromJsonFile(const char* filename);
+    char* fsReadJsonChar(const char* filename);
 
     template <typename Generic>
     void DEBUG_WM(Generic text);
