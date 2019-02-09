@@ -536,6 +536,59 @@ char* WifiApi::fsReadJsonChar(const char* filename) {
   
 }
 
+JsonObject* WifiApi::fsReadJson(const char* filename) {
+  
+  StaticJsonBuffer<1> emptyJsonBuffer;
+  JsonObject& emptyJson = emptyJsonBuffer.createObject();
+
+  if (!startFileSystem()) {
+    DEBUG_WM(F("fsReadJson - SPIFFS.begin failed"));
+  }
+  
+  File file = SPIFFS.open(filename, "r");
+  if (!file) {
+    DEBUG_WM(F("fsReadJson - File not found"));
+    return NULL;
+    //return emptyJson;
+  }
+  
+  size_t size = file.size();
+  if (size > 1024) {
+    DEBUG_WM(F("fsReadJson - File to large"));
+    return NULL;
+    //return emptyJson;
+  }
+  else if (size == 0)   {
+    DEBUG_WM(F("fsReadJson - File is empty"));
+    return NULL;
+    //return emptyJson;
+  }
+
+  // Allocate a buffer to store contents of the file.
+  std::unique_ptr<char[]> buf(new char[size]);
+
+  // We don't use String here because ArduinoJson library requires the input
+  // buffer to be mutable. If you don't use ArduinoJson, you may as well
+  // use configFile.readString instead.
+  file.readBytes(buf.get(), size);
+
+  DynamicJsonBuffer jsonBuffer;
+  JsonObject& json = jsonBuffer.parseObject(buf.get());
+  
+  if (!json.success()) {
+    DEBUG_WM(F("fsReadJson - Failed to parse config file"));
+    return NULL;
+  }
+  
+  DEBUG_WM(F("fsReadJson - Success:"));
+  String output;
+  json.printTo(output);
+  DEBUG_WM(output);
+  
+  return &json;
+  
+}
+
 
 
 
