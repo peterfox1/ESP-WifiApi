@@ -79,6 +79,8 @@ class WifiApi {
     void saveConfig_app(JsonObject& appJson);
 
     bool startFileSystem();
+    bool fsWriteJson(JsonObject& newAppJson, const char *filename);
+    bool fsWriteJsonChar(char *jsonChar, const char *filename);
     const char* loadFromJsonFile(const char* filename);
 
     template <typename Generic>

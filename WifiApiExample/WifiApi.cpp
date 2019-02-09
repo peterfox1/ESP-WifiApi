@@ -374,54 +374,103 @@ void WifiApi::saveConfig_wifi( JsonObject& newWifiJson ) {
 }
 void WifiApi::saveConfig_app( JsonObject& newAppJson ) {
 
-  if (!hasConfig_app()) {
-    DEBUG_WM(F("saveConfig_app - new"));
+  if (!hasConfig_app()) {  // There's no existing data, create base JSON.
+    
+    DEBUG_WM(F("saveConfig_app - new json"));
     
     _appJson = new char [newAppJson.measureLength() + 1];
     newAppJson.printTo((char*)_appJson, newAppJson.measureLength() + 1);
+    
+    DEBUG_WM(_appJson);
 
+    // Save directly from char
+    fsWriteJsonChar(_appJson, WIFIAPI_FILE_APP);
+
+    // Trigger App Data Change Callback
+    if (_fnAppDataChange != NULL) {
+      _fnAppDataChange(this, newAppJson);
+    }
     
   } else {
-    DEBUG_WM(F("saveConfig_app - extend"));
+    DEBUG_WM(F("saveConfig_app - merge json"));
     
-//    StaticJsonBuffer<200> jsonBuffer;
     DynamicJsonBuffer jsonBuffer;
     JsonObject& appJson = jsonBuffer.parseObject(getAppJson());
-
+    
     // Merge by copying properties from newAppJson to appJson
     for (auto kvp : newAppJson) {
       appJson[kvp.key] = kvp.value;
     }
-
+  
     _appJson = new char [appJson.measureLength() + 1];
     appJson.printTo((char*)_appJson, appJson.measureLength() + 1);
-
+  
     DEBUG_WM(_appJson);
+
+    // Save directly from char
+    fsWriteJsonChar(_appJson, WIFIAPI_FILE_APP);
+
+    // Trigger App Data Change Callback
+    if (_fnAppDataChange != NULL) {
+      _fnAppDataChange(this, appJson);
+    }
     
   }
-
-  if (_fnAppDataChange != NULL) {
-    _fnAppDataChange(this, newAppJson);
-  }
-
-
-//  DEBUG_WM(F("saveConfig_app:"));
-//  DEBUG_WM(_appJson);
-
   
-//  if (!startFileSystem()) {
-//    DEBUG_WM(F("saveConfig_app - startFileSystem failed"));
-//  }
-//  
-//  File configFile = SPIFFS.open(WIFIAPI_FILE_APP, "w");
-//  if (!configFile) {
-//    DEBUG_WM(F("saveConfig_app - failed to open for write"));
-//    return;
-//  }
-//  appJson.printTo(configFile); // Export and save JSON object to SPIFFS area
-//  configFile.close();
 }
 
+
+bool WifiApi::fsWriteJson( JsonObject& appJson, const char *filename ) {
+  
+  //DEBUG_WM(F("fsWriteJson"));
+  
+  if (!startFileSystem()) {
+    DEBUG_WM(F("fsWriteJson - startFileSystem failed"));
+  }
+  
+  File configFile = SPIFFS.open(WIFIAPI_FILE_APP, "w");
+  if (!configFile) {
+    DEBUG_WM(F("fsWriteJson - failed to open for write"));
+    return false;
+  }
+  
+  bool result = appJson.printTo(configFile); // Export and save JSON object to SPIFFS area
+  configFile.close();
+
+  if (result) {
+    DEBUG_WM(F("fsWriteJson - Success"));
+  }
+  
+  return result;
+}
+
+bool WifiApi::fsWriteJsonChar( char *jsonChar, const char *filename ) {
+  
+  //DEBUG_WM(F("fsWriteJsonChar"));
+  
+  if (!startFileSystem()) {
+    DEBUG_WM(F("fsWriteJsonChar - startFileSystem failed"));
+  }
+  
+  File configFile = SPIFFS.open(WIFIAPI_FILE_APP, "w");
+  if (!configFile) {
+    DEBUG_WM(F("fsWriteJsonChar - failed to open for write"));
+    return false;
+  }
+
+  bool result = configFile.print(jsonChar);
+  configFile.close();
+
+  if (result) {
+    DEBUG_WM(F("fsWriteJsonChar - Success"));
+  }
+  
+  return result;
+}
+
+//bool WifiApi::fsReadJson() {
+//  
+//}
 
 
 
