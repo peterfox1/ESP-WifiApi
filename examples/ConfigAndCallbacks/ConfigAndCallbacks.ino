@@ -1,13 +1,15 @@
 
 #include <ESP8266WiFi.h>          //https://github.com/esp8266/Arduino
-
 #include <DNSServer.h>
 #include <ESP8266WebServer.h>
-#include "WifiApi.h"
+
+#include <WifiApi.h>
 
 const int PIN_LED_STATUS = 2;
 
 WifiApi wifiApi;
+
+
 
 /**
  * WifiApi Event: The app (application-specific) data was updated
@@ -59,6 +61,8 @@ void wifiApi_onFailedReconnect(WifiApi* _wifiApi) {
 //  _wifiApi.retryConnect();
 }
 
+
+
 void setup() {
   
   pinMode(PIN_LED_STATUS, OUTPUT);
@@ -67,15 +71,7 @@ void setup() {
   Serial.begin(115200);
   while (!Serial) ; delay(100); // Wait for serial
   Serial.println(">");
-
-
-  // Clear any saved data or wifi settings, use this to clear stored wifi details/switch back to AP mode.
-  // ...This should only be used by a 'wifi reset' button/action on your device.
-  // ...If you don't have a dedicated button available for this, you could trigger it if a button is pressed during power up.
-  // ...If this isn't possible, you can use onFailedReconnect to automatically switch it back to AP mode if the wifi connection fails.
-  //wifiApi.reset();
-
-
+  
   // OPTIONAL: Use these callbacks to customise how updates/events are handled.
   wifiApi.onAppDataChange(wifiApi_onAppDataChange); // Triggered on updates/changes to app data values received via the JSON API.
   wifiApi.onWifiConfigChange(wifiApi_onWifiConfigChange); // Triggered just before wifiApi switches to some updated wifi details received via the JSON API.
@@ -89,11 +85,23 @@ void setup() {
 
 }
 
+
+
 void loop() {
-  wifiApi.handleClient(); // Put this in the main loop to allow the JSON API to be used when connected to the wifi network (optional)
   
-  // put your main code here, to run repeatedly:
+  wifiApi.handleClient();	// Leave this here if you want the JSON API to remain active after the initial wifi connection setup (optional)
+  
+  bool resetButtonPressed = false;	// Link this up to a reset button using digitalRead.
+  if (resetButtonPressed) {
+    wifiApi.reset();	// Clear any saved wifi settings & switch back to AP mode.
+    // ...If you don't have a dedicated button available for this, you could trigger this only if a button is pressed during power up by moving this code into setup()
+    // ...Alternatively, you could use onFailedReconnect to automatically switch the device back to AP mode if the wifi connection fails.
+    delay(1000);
+  }
+  
+  // <your application code goes here>
   delay(1);
+  
 }
 
 
