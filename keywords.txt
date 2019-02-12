@@ -1,0 +1,23 @@
+#######################################
+# Syntax Coloring Map For WifiApi
+#######################################
+
+#######################################
+# Class (KEYWORD1)
+#######################################
+
+WifiApi	KEYWORD1
+
+#######################################
+# Methods and Functions (KEYWORD2)
+#######################################
+
+# methods names in commond
+autoConnect	KEYWORD2
+onWifiConfigChange	KEYWORD2
+onAppDataChange	KEYWORD2
+onFailedReconnect	KEYWORD2
+hasWifiConfig	KEYWORD2
+resetWifiConfig	KEYWORD2
+resetCustomConfig	KEYWORD2
+reset	KEYWORD2
