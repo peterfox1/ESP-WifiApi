@@ -1,18 +1,83 @@
-# ESP8266 WiFi Config via JSON API
-Allows the ES8266 to be setup via JSON API, Creates an Access Point if no wifi config is already set.
+# ESP8266 WiFi connection manager and data store via JSON API
 
-This library is intended to allow you to make a custom app to connect ESP8266s to your wifi network. The app just has to send JSON to the ESP that contains the wifi credentials. The API can also be used to send custom data from the app.
+This library is intended to make it simple to create your own mobile application that can setup and configure your ESP8266.
+ - Hosts a simple json api to set wifi and custom properties. (e.g. mqtt details, or led on/off).
+ - Auto-reconnects to saved wifi details, otherwise enables AP mode.
+ - `reset()` method to clear the saved details and re-enable AP mode.
+ - Triggers callback functions when data or connection state changes.
 
-Designed to be very easy to use and simple to customise if desired.
+## Basic ESP application:
+```C++
+#include <ESP8266WiFi.h>
+#include <DNSServer.h>
+#include <ESP8266WebServer.h>
 
-Usage:
+#include <WifiApi.h>
+
+WifiApi wifiApi;
+
+const int PIN_RESET_BUTTON = 3;
+
+void setup() {
+  wifiApi.autoConnect("Device SSID");
+}
+
+void loop() {
+  if (digitalRead(PIN_RESET_BUTTON)) {
+    wifiApi.reset();	// Clear any saved wifi settings & switch back to AP mode.
+    delay(10000);
+  }
+  
+  // <your application code goes here>
+  delay(1);
+}
+```
+
+## API:
+
+*Notice: after configuring wifi details the IP address will change. Your application will need to handle this*
+
+### Set wifi details and/or app specific data
+
+#### `POST 192.168.4.1/config`
+You can set the wifi details and app data at the same time:
+```json
+{
+	"wifi": { "ssid":"my wifi", "pass":"12345" },
+	"app": { "led": false, "myName": "You" }
+}
+```
+
+#### `POST 192.168.4.1/config`
+App properties will always be merged, so in this case the `myName` property would still be stored.
+```json
+{
+	"app": { "led": true }
+}
+```
+
+
+### Fetch the stored data
+
+####  `GET 192.168.4.1/config`
+```json
+{
+	"wifi": { "ssid":"my wifi", "pass":"***" },
+	"app": { "led": true, "myName": "You" }
+}
+```
+`pass` is always returned as "***" :)
+
+
+
+## Usage Notes:
  - Include this library and the ESP8266WiFi libraries. Initialise globally with `WifiApi wifiApi;`
  - Put `wifiApi.autoConnect("My AP Name");` in `setup()`
- - Optional: Put `wifiApi.handleClient();` in `loop()` (enables the json api outside of AP mode for re-configuration & custom data)
+ - Optional: Put `wifiApi.handleClient();` in `loop()` (required to be able to use the json api outside of AP mode for re-configuration & custom data)
  - Optional: Setup callback functions to perform custom actions when wifi events or data updates happen.
- 
- 
-## Example functionality enabled by this library.
+
+
+## Example use case:
 Using `wifiApi.autoConnect("MyAP");` in `setup()`:
 
 First power-on (or `reset` is triggered):
@@ -30,12 +95,8 @@ If the ESP is powered up again, it will automatically connect to the WiFi networ
  - [x] Creates an AP with a custom name if no wifi details are saved*.
  - [x] Provides a simple JSON API for configuring and updating WiFi credentials*.
  - [x] The API is available both when the ESP is connected in AP mode or as a client on the network.
- - [ ] Custom data can be provided to the API for use by your own application.
- - [x] A callback can be used to fine tune how to handle failure to connect (ie you could choose to wait, start up the AP or any other action)*
- - [ ] A callback is triggered when custom data is set/updated
+ - [x] Custom data can be provided to the API for use by your own application.
+ - [x] A callback is triggered when custom data is set/updated
  - [ ] A callback is triggered when the wifi details are set/updated.
- - [ ] Built-in option to auto-retry connection with retry limit and associated event callbacks.
- - [ ] Built-in option to auto reset and fallback to AP with associated event callback.
- 
- *Currently WIP functionality, may use hard coded values.
- 
+ - [ ] A callback is triggered on connection failure (ie you can choose to wait, start up the AP or perform any other action)
+ - [ ] Built-in auto retry & reset options e.g. retry limit / fallback to AP and associated event callbacks.
